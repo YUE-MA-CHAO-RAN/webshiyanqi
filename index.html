@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <div id="root"></div>
+</body>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script async src="https://ga.jspm.io/npm:es-module-shims@1.7.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react?dev",
+    "react-dom/client": "https://esm.sh/react-dom/client?dev"
+  }
+}
+</script>
+<script type="text/babel" data-type="module">
+    import React, { useState } from "react";
+    import { createRoot } from "react-dom/client";
+
+    function Square({ value, onSquareClick }) {
+        return (
+            <button className="square" onClick={onSquareClick}>
+                {value}
+            </button>
+        );
+    }
+
+    function Board({ xIsNext, squares, onPlay }) {
+        const size = 15;
+
+        function handleClick(i) {
+            if (calculateWinner(squares, size) || squares[i]) return;
+
+            const nextSquares = squares.slice();
+            nextSquares[i] = xIsNext ? "X" : "O";
+            onPlay(nextSquares);
+        }
+
+        const winner = calculateWinner(squares, size);
+        const status = winner
+            ? `Winner: ${winner}`
+            : `Next player: ${xIsNext ? "X" : "O"}`;
+
+        const renderBoard = () => {
+            const rows = [];
+            for (let i = 0; i < size; i++) {
+                const row = [];
+                for (let j = 0; j < size; j++) {
+                    const index = i * size + j;
+                    row.push(
+                        <Square
+                            key={index}
+                            value={squares[index]}
+                            onSquareClick={() => handleClick(index)}
+                        />
+                    );
+                }
+                rows.push(
+                    <div key={i} className="board-row">
+                        {row}
+                    </div>
+                );
+            }
+            return rows;
+        };
+
+        return (
+            <>
+                <div className="status">{status}</div>
+                {renderBoard()}
+            </>
+        );
+    }
+
+    function Game() {
+        const size = 15;
+        const [history, setHistory] = useState([Array(size * size).fill(null)]);
+        const [currentMove, setCurrentMove] = useState(0);
+        const xIsNext = currentMove % 2 === 0;
+        const currentSquares = history[currentMove];
+
+        function handlePlay(nextSquares) {
+            const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
+            setHistory(nextHistory);
+            setCurrentMove(nextHistory.length - 1);
+        }
+
+        function jumpTo(nextMove) {
+            setCurrentMove(nextMove);
+        }
+
+        const moves = history.map((squares, move) => {
+            const description = move
+                ? `Go to move #${move}`
+                : "Go to game start";
+            return (
+                <li key={move}>
+                    <button onClick={() => jumpTo(move)}>{description}</button>
+                </li>
+            );
+        });
+
+        return (
+            <div className="game">
+                <div className="game-board">
+                    <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
+                </div>
+                <div className="game-info">
+                    <ol>{moves}</ol>
+                </div>
+            </div>
+        );
+    }
+
+    function calculateWinner(squares, size) {
+        const directions = [
+            [1, 0],
+            [0, 1],
+            [1, 1],
+            [1, -1],
+        ];
+
+        for (let i = 0; i < squares.length; i++) {
+            const x = Math.floor(i / size);
+            const y = i % size;
+            const player = squares[i];
+            if (!player) continue;
+
+            for (const [dx, dy] of directions) {
+                let count = 0;
+                for (let step = 0; step < 5; step++) {
+                    const nx = x + dx * step;
+                    const ny = y + dy * step;
+                    const ni = nx * size + ny;
+                    if (
+                        nx >= 0 &&
+                        nx < size &&
+                        ny >= 0 &&
+                        ny < size &&
+                        squares[ni] === player
+                    ) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+                if (count === 5) return player;
+            }
+        }
+        return null;
+    }
+
+    const root = createRoot(document.getElementById("root"));
+    root.render(<Game />);
+</script>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #87CEFA, #4682B4);
+        /* 渐变背景 */
+    }
+
+    .square {
+        background: #FFFACD;
+        /* 浅黄色背景 */
+        border: 2px solid #FFD700;
+        /* 金色边框 */
+        font-size: 18px;
+        font-weight: bold;
+        color: black;
+        /* 棋子颜色设置为黑色 */
+        height: 40px;
+        width: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        /* 添加平滑效果 */
+        border-radius: 4px;
+        /* 添加圆角 */
+    }
+
+    .square:hover {
+        background: #FFD700;
+        /* 鼠标悬停时变成金色 */
+    }
+
+    .board-row {
+        display: flex;
+    }
+
+    .status {
+        font-size: 20px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        /* 半透明背景 */
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        width: fit-content;
+        position: sticky;
+        /* 固定状态信息 */
+        top: 0;
+        z-index: 10;
+        /* 保证在最前方 */
+    }
+
+    .game {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: rgba(255, 255, 255, 0.9);
+        /* 棋盘区域浅色半透明 */
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        /* 添加阴影 */
+    }
+
+    .game-board {
+        margin-right: 30px;
+        /* 增加棋盘与记录之间的间距 */
+    }
+
+    .game-info {
+        font-size: 16px;
+        color: #333;
+        max-height: 300px;
+        /* 限制记录区域的最大高度 */
+        overflow-y: auto;
+        /* 启用滚动条 */
+    }
+
+    .game-info ol {
+        padding-left: 20px;
+    }
+
+    .game-info ol li {
+        margin-bottom: 10px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 8px 12px;
+        margin: 5px 0;
+        cursor: pointer;
+        border: none;
+        background: #007bff;
+        /* 按钮背景蓝色 */
+        color: #fff;
+        border-radius: 5px;
+        transition: all 0.2s ease;
+        /* 平滑过渡 */
+    }
+
+    button:hover {
+        background: #0056b3;
+        /* 悬停更深蓝 */
+    }
+
+    button:active {
+        background: #003f7f;
+        /* 按下时深蓝 */
+        transform: scale(0.95);
+        /* 按下时缩小 */
+    }
+
+    button.current {
+        background: #28a745;
+        /* 当前步骤绿色 */
+        font-weight: bold;
+    }
+
+    button.current:hover {
+        background: #218838;
+    }
+</style>
+
+
+
+
+</html>
